@@ -390,7 +390,7 @@ def clean_frames(frames, prefilter_space=(3,), prefilter_time=None,
 
 
 def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
-                       mask_threshold=-30, use_cc=False, progress_bar=False):
+                       mask_threshold=-30, use_cc=False, progress_bar=False, number_of_mice=1):
     """
     Use image moments to compute features of the largest object in the frame
 
@@ -416,12 +416,15 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
         has_mask = False
         mask = np.zeros((frames.shape), 'uint8')
 
-    # Pack contour features into dict
-    features = {
-        'centroid': np.full((nframes, 2), np.nan),
-        'orientation': np.full((nframes,), np.nan),
-        'axis_length': np.full((nframes, 2), np.nan)
-    }
+    features_list = []
+    for i in range(number_of_mice):
+        # Pack contour features into dict
+        features = {
+            'centroid': np.full((nframes, 2), np.nan),
+            'orientation': np.full((nframes,), np.nan),
+            'axis_length': np.full((nframes, 2), np.nan)
+        }
+        features_list.append(features)
 
     for i in tqdm(range(nframes), disable=not progress_bar, desc='Computing moments'):
         # Threshold frame to compute mask
@@ -445,13 +448,16 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
         if tmp.size == 0:
             continue
 
-        mouse_cnt = tmp.argmax()
+        # mouse_cnt = tmp.argmax() # KO: tmp contains all the found contours - if there are 4 mice, they should each show up as an item in tmp. Get the 4 highest values.
+        mouse_cnts = np.argpartition(tmp, -number_of_mice)[-number_of_mice:]
+        
+        for k in range(len(mouse_cnts)):
+            mouse_cnt = mouse_cnts[i]
+            # Get features from contours
+            for key, value in im_moment_features(cnts[mouse_cnt]).items():
+                features_list[k][key][i] = value
 
-        # Get features from contours
-        for key, value in im_moment_features(cnts[mouse_cnt]).items():
-            features[key][i] = value
-
-    return features, mask
+    return features_list, mask
 
 
 def crop_and_rotate_frames(frames, features, crop_size=(80, 80), progress_bar=False):

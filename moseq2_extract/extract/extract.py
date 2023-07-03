@@ -31,6 +31,7 @@ def extract_chunk(chunk, use_tracking_model=False, spatial_filter_size=(3,),
                   angle_hampel_span=5, angle_hampel_sig=3,
                   model_smoothing_clips=(-300, -150), tracking_model_init='raw',
                   compute_raw_scalars=False,
+                  number_of_mice=1,
                   **kwargs):
                       
     """
@@ -102,14 +103,14 @@ def extract_chunk(chunk, use_tracking_model=False, spatial_filter_size=(3,),
 
     # Denoise the frames before we do anything else
     filtered_frames = clean_frames(chunk,
-                                   prefilter_space=spatial_filter_size,
-                                   prefilter_time=temporal_filter_size,
-                                   iters_tail=tail_filter_iters,
-                                   strel_tail=strel_tail,
-                                   iters_min=iters_min,
-                                   strel_min=strel_min,
-                                   frame_dtype=frame_dtype,
-                                   progress_bar=progress_bar)
+                                prefilter_space=spatial_filter_size,
+                                prefilter_time=temporal_filter_size,
+                                iters_tail=tail_filter_iters,
+                                strel_tail=strel_tail,
+                                iters_min=iters_min,
+                                strel_min=strel_min,
+                                frame_dtype=frame_dtype,
+                                progress_bar=progress_bar)
 
     # If we need it, compute the EM parameters (for tracking in presence of occluders)
     if use_tracking_model:
@@ -126,84 +127,92 @@ def extract_chunk(chunk, use_tracking_model=False, spatial_filter_size=(3,),
         parameters = None
 
     # now get the centroid and orientation of the mouse
-    features, mask = get_frame_features(filtered_frames,
+    features_list, mask = get_frame_features(filtered_frames,
                                         frame_threshold=min_height, mask=ll,
                                         mask_threshold=mask_threshold,
                                         use_cc=use_cc,
-                                        progress_bar=progress_bar)
+                                        progress_bar=progress_bar, number_of_mice=number_of_mice)
 
-    incl = ~np.isnan(features['orientation'])
-    features['orientation'][incl] = np.unwrap(features['orientation'][incl] * 2) / 2
+    # MultiAnimal: Loop over the following steps for each animal and collect all results into a list
+    results_list = []
+    for i in range(number_of_mice):
+        
+        features = features_list[i]
 
-    # Detect and filter out any mouse-centering outlier frames
-    features = feature_hampel_filter(features,
-                                     centroid_hampel_span=centroid_hampel_span,
-                                     centroid_hampel_sig=centroid_hampel_sig,
-                                     angle_hampel_span=angle_hampel_span,
-                                     angle_hampel_sig=angle_hampel_sig)
+        incl = ~np.isnan(features['orientation'])
+        features['orientation'][incl] = np.unwrap(features['orientation'][incl] * 2) / 2
 
-    # Smooth EM tracker results if they exist
-    if ll is not None:
-        features = model_smoother(features,
-                                  ll=ll,
-                                  clips=model_smoothing_clips)
+        # Detect and filter out any mouse-centering outlier frames
+        features = feature_hampel_filter(features,
+                                        centroid_hampel_span=centroid_hampel_span,
+                                        centroid_hampel_sig=centroid_hampel_sig,
+                                        angle_hampel_span=angle_hampel_span,
+                                        angle_hampel_sig=angle_hampel_sig)
 
-    # Crop and rotate the original frames
-    cropped_frames = crop_and_rotate_frames(
-        chunk, features, crop_size=crop_size, progress_bar=progress_bar)
+        # Smooth EM tracker results if they exist
+        if ll is not None:
+            features = model_smoother(features,
+                                    ll=ll,
+                                    clips=model_smoothing_clips)
 
-    # Crop and rotate the filtered frames to be returned and later written
-    cropped_filtered_frames = crop_and_rotate_frames(
-        filtered_frames, features, crop_size=crop_size, progress_bar=progress_bar)
+        # Crop and rotate the original frames
+        cropped_frames = crop_and_rotate_frames(
+            chunk, features, crop_size=crop_size, progress_bar=progress_bar)
 
-    # Compute crop-rotated frame mask
-    if use_tracking_model:
-        use_parameters = deepcopy(parameters)
-        use_parameters['mean'][:, 0] = crop_size[1] // 2
-        use_parameters['mean'][:, 1] = crop_size[0] // 2
-        mask = em_get_ll(cropped_frames, progress_bar=progress_bar, **use_parameters)
-    else:
-        mask = crop_and_rotate_frames(
-            mask, features, crop_size=crop_size, progress_bar=progress_bar)
+        # Crop and rotate the filtered frames to be returned and later written
+        cropped_filtered_frames = crop_and_rotate_frames(
+            filtered_frames, features, crop_size=crop_size, progress_bar=progress_bar)
 
-    # Orient mouse to face east
-    if flip_classifier:
-        # get frame indices of incorrectly orientation
-        flips = get_flips(cropped_filtered_frames, flip_classifier, flip_classifier_smoothing)
-        flip_indices = np.where(flips)
+        # Compute crop-rotated frame mask
+        if use_tracking_model:
+            use_parameters = deepcopy(parameters)
+            use_parameters['mean'][:, 0] = crop_size[1] // 2
+            use_parameters['mean'][:, 1] = crop_size[0] // 2
+            mask = em_get_ll(cropped_frames, progress_bar=progress_bar, **use_parameters)
+        else:
+            mask = crop_and_rotate_frames(
+                mask, features, crop_size=crop_size, progress_bar=progress_bar)
 
-        # apply flips
-        cropped_frames[flip_indices] = np.rot90(cropped_frames[flip_indices], k=2, axes=(1, 2))
-        cropped_filtered_frames[flip_indices] = np.rot90(cropped_filtered_frames[flip_indices], k=2, axes=(1, 2))
-        mask[flip_indices] = np.rot90(mask[flip_indices], k=2, axes=(1, 2))
-        features['orientation'][flips] += np.pi
+        # Orient mouse to face east
+        if flip_classifier:
+            # get frame indices of incorrectly orientation
+            flips = get_flips(cropped_filtered_frames, flip_classifier, flip_classifier_smoothing)
+            flip_indices = np.where(flips)
 
-    else:
-        flips = None
+            # apply flips
+            cropped_frames[flip_indices] = np.rot90(cropped_frames[flip_indices], k=2, axes=(1, 2))
+            cropped_filtered_frames[flip_indices] = np.rot90(cropped_filtered_frames[flip_indices], k=2, axes=(1, 2))
+            mask[flip_indices] = np.rot90(mask[flip_indices], k=2, axes=(1, 2))
+            features['orientation'][flips] += np.pi
 
-    if compute_raw_scalars:
-        # Computing scalars from raw data
-        scalars = compute_scalars(cropped_frames,
-                                  features,
-                                  min_height=min_height,
-                                  max_height=max_height,
-                                  true_depth=true_depth)
-    else:
-        # Computing scalars from filtered data
-        scalars = compute_scalars(cropped_filtered_frames,
-                                  features,
-                                  min_height=min_height,
-                                  max_height=max_height,
-                                  true_depth=true_depth)
+        else:
+            flips = None
 
-    # Store all results in a dictionary
-    results = {
-        'chunk': chunk,
-        'depth_frames': cropped_frames,
-        'mask_frames': mask,
-        'scalars': scalars,
-        'flips': flips,
-        'parameters': parameters
-    }
+        if compute_raw_scalars:
+            # Computing scalars from raw data
+            scalars = compute_scalars(cropped_frames,
+                                    features,
+                                    min_height=min_height,
+                                    max_height=max_height,
+                                    true_depth=true_depth)
+        else:
+            # Computing scalars from filtered data
+            scalars = compute_scalars(cropped_filtered_frames,
+                                    features,
+                                    min_height=min_height,
+                                    max_height=max_height,
+                                    true_depth=true_depth)
 
-    return results
+        # Store all results in a list of dictionaries, one dictionary for each mouse
+        results = {
+            'chunk': chunk,
+            'depth_frames': cropped_frames,
+            'mask_frames': mask,
+            'scalars': scalars,
+            'flips': flips,
+            'parameters': parameters
+        }
+        
+        results_list.append(results)
+
+    return results_list

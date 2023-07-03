@@ -125,15 +125,20 @@ def process_extract_batches(input_file, config_data, bground_im, roi,
         offset = config_data['chunk_overlap'] if i > 0 else 0
 
         # Get crop-rotated frame batch
-        results = extract_chunk(**config_data,
+        # number_of_mice = config_data['number_of_mice']
+        results_list = extract_chunk(**config_data,
                                 **str_els,
                                 chunk=raw_chunk,
                                 roi=roi,
                                 bground=bground_im,
                                 tracking_init_mean=tracking_init_mean,
-                                tracking_init_cov=tracking_init_cov
+                                tracking_init_cov=tracking_init_cov,
+                                number_of_mice=4
                                 )
 
+        # MultiAnimal: Testing on one mouse at a time first, id 0.
+        results = results_list[0]
+        
         if config_data['use_tracking_model']:
             # threshold and clip mask frames from EM tracking results
             results, tracking_init_mean, tracking_init_cov = set_tracking_model_parameters(results, **config_data)
