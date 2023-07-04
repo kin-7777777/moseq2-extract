@@ -466,7 +466,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             mice_last_centroids = np.array(mice_last_centroids)
             mice_last_orientations = np.array(mice_last_orientations)
             first_valid_frame = True
-        
+        print('new frame')
         for k in range(number_of_mice):
             mouse_cnt = mouse_cnts[k]
             # Get features from contours
@@ -479,6 +479,8 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             id = np.argmax(similarity_scores)
             print(similarity_scores)
             print(id)
+            mice_last_centroids[id] = np.array(moment_feats['centroid'])
+            mice_last_orientations[id] = np.array(moment_feats['orientation'])
             for key, value in moment_feats.items():
                 features_list[id][key][i] = value
 
