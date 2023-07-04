@@ -31,7 +31,7 @@ def extract_chunk(chunk, use_tracking_model=False, spatial_filter_size=(3,),
                   angle_hampel_span=5, angle_hampel_sig=3,
                   model_smoothing_clips=(-300, -150), tracking_model_init='raw',
                   compute_raw_scalars=False,
-                  number_of_mice=1,
+                  number_of_mice=4,
                   **kwargs):
                       
     """

@@ -447,7 +447,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
         cnts, hierarchy = cv2.findContours(frame_mask.astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         tmp = np.array([cv2.contourArea(x) for x in cnts])
 
-        if tmp.size == 0:
+        if tmp.size < number_of_mice:
             continue
 
         # mouse_cnt = tmp.argmax() # KO: tmp contains all the found contours - if there are 4 mice, they should each show up as an item in tmp. Get the 4 highest values.
@@ -475,10 +475,10 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
                 centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
                 orientation_distance_scores = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
-                similarity_score = orientation_distance_scores - centroid_distance_scores
-                id = np.argmax(similarity_score)
+                similarity_scores = orientation_distance_scores - centroid_distance_scores
+                id = np.argmax(similarity_scores)
+                print(similarity_scores)
             print(id)
-            print('hi')
             for key, value in moment_feats.items():
                 features_list[id][key][i] = value
 
