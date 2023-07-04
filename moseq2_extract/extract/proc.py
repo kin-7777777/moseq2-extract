@@ -20,6 +20,8 @@ from os.path import exists, join, dirname
 from moseq2_extract.io.image import read_image, write_image
 from moseq2_extract.util import convert_pxs_to_mm, strided_app
 
+import scipy.linalg
+
 
 def get_flips(frames, flip_file=None, smoothing=None):
     """
@@ -451,11 +453,28 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
         # mouse_cnt = tmp.argmax() # KO: tmp contains all the found contours - if there are 4 mice, they should each show up as an item in tmp. Get the 4 highest values.
         mouse_cnts = np.argpartition(tmp, -number_of_mice)[-number_of_mice:]
         
-        for k in range(len(mouse_cnts)):
+        if i == 0:
             mouse_cnt = mouse_cnts[i]
+            mice_last_centroids = []
+            mice_last_orientations = []
+            for _ in range(number_of_mice):
+                moment_feats = im_moment_features(cnts[mouse_cnt])
+                mice_last_centroids.append(moment_feats['centroid'])
+                mice_last_orientations.append(moment_feats['orientation'])
+        
+        for k in range(number_of_mice):
+            mouse_cnt = mouse_cnts[k]
             # Get features from contours
-            for key, value in im_moment_features(cnts[mouse_cnt]).items():
-                features_list[k][key][i] = value
+            moment_feats = im_moment_features(cnts[mouse_cnt])
+            # Now we need to match the mice identities based on the features from the previous frame.
+            centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - moment_feats['centroid'], axis=1) # the lower, the closer
+            centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
+            orientation_distance_scores = np.cos(mice_last_centroids - moment_feats['orientation']) # the higher, the closer
+            similarity_score = orientation_distance_scores - centroid_distance_scores
+            id = np.max(similarity_score)
+            
+            for key, value in moment_feats.items():
+                features_list[id][key][i] = value
 
     return features_list, mask
 
