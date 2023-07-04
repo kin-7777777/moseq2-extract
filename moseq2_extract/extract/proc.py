@@ -465,15 +465,18 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             mice_last_orientations = np.array(mice_last_orientations)
         
         for k in range(number_of_mice):
-            mouse_cnt = mouse_cnts[k]
-            # Get features from contours
-            moment_feats = im_moment_features(cnts[mouse_cnt])
-            # Now we need to match the mice identities based on the features from the previous frame.
-            centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
-            centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
-            orientation_distance_scores = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
-            similarity_score = orientation_distance_scores - centroid_distance_scores
-            id = np.max(similarity_score)
+            if i == 0:
+                id = k
+            else:
+                mouse_cnt = mouse_cnts[k]
+                # Get features from contours
+                moment_feats = im_moment_features(cnts[mouse_cnt])
+                # Now we need to match the mice identities based on the features from the previous frame.
+                centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
+                centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
+                orientation_distance_scores = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
+                similarity_score = orientation_distance_scores - centroid_distance_scores
+                id = np.argmax(similarity_score)
             print(id)
             print('hi')
             for key, value in moment_feats.items():
