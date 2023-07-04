@@ -475,7 +475,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
             centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
             orientation_distance_scores = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
-            similarity_scores = orientation_distance_scores - centroid_distance_scores
+            similarity_scores = -centroid_distance_scores
             id = np.argmax(similarity_scores)
             print(similarity_scores)
             print(id)
