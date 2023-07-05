@@ -512,7 +512,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                         assignment[r] = c
                     print("assignment: "+str(assignment))
                     for l in range(len(culprits)):
-                        new_assigned_ids[culprits[l]] = culprits[assignment[l]]
+                        new_assigned_ids[culprits[l]] = free_ids[assignment[l]]
                 assigned_ids = new_assigned_ids
             
             print(assigned_ids)
