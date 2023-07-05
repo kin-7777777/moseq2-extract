@@ -511,6 +511,9 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             print(assigned_ids)
             
             for k in range(number_of_mice):
+                mouse_cnt = mouse_cnts[k]
+                # Get features from contours
+                moment_feats = im_moment_features(cnts[mouse_cnt])
                 id = assigned_ids[k]
                 mice_last_centroids[id] = np.array(moment_feats['centroid'])
                 mice_last_orientations[id] = np.array(moment_feats['orientation'])
