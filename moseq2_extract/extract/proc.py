@@ -489,7 +489,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 id = np.argmax(similarity_scores)
                 assigned_ids.append(id)
             duplicated_ids = [item for item, count in Counter(assigned_ids).items() if count > 1]
-            free_ids = np.array(set(range(number_of_mice)).difference(set(assigned_ids)).union(duplicated_ids)) # unallocated ids.
+            free_ids = np.array(list(set(range(number_of_mice)).difference(set(assigned_ids)).union(duplicated_ids))) # unallocated ids.
             print("initial assigned_ids: "+str(assigned_ids))
             print("duplicated_ids: "+str(duplicated_ids))
             print("free_ids: "+str(free_ids))
