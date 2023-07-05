@@ -496,11 +496,13 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 new_assigned_ids = assigned_ids
                 for dup_id in duplicated_ids:
                     culprits = np.argwhere(assigned_ids == dup_id)
+                    print(culprits)
                     cost_matrix = np.zeros((len(culprits), len(culprits)))
                     for l in range(len(culprits)):
                         for m in range(len(culprits)):
                             cost_matrix[l, m] = -orientation_distance_scores[culprits[l], culprits[m]]
                     _, assignment = scipy.optimize.linear_sum_assignment(cost_matrix)
+                    print(assignment)
                     for l in range(len(culprits)):
                         new_assigned_ids[culprits[l]] = culprits[assignment[l]]
                 assigned_ids = new_assigned_ids
