@@ -495,9 +495,10 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 print("hi")
                 new_assigned_ids = assigned_ids
                 for dup_id in duplicated_ids:
-                    culprits = np.argwhere(assigned_ids == dup_id)
+                    culprits = np.squeeze(np.argwhere(assigned_ids == dup_id))
                     print(culprits)
                     cost_matrix = np.zeros((len(culprits), len(culprits)))
+                    print(cost_matrix)
                     for l in range(len(culprits)):
                         for m in range(len(culprits)):
                             cost_matrix[l, m] = -orientation_distance_scores[culprits[l], culprits[m]]
