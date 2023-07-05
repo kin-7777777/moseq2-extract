@@ -496,7 +496,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             # Handle more than one mouse being matched to the same id by centroid distance.
             if len(duplicated_ids) > 0:
                 print("hi")
-                new_assigned_ids = assigned_ids
+                new_assigned_ids = deepcopy(assigned_ids)
                 for dup_id in duplicated_ids:
                     # We must match those duplicates to the unallocated ids (free_ids).
                     culprits = np.squeeze(np.argwhere(assigned_ids == dup_id))
