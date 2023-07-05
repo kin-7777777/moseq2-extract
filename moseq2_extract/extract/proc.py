@@ -21,7 +21,8 @@ from moseq2_extract.io.image import read_image, write_image
 from moseq2_extract.util import convert_pxs_to_mm, strided_app
 
 import scipy.linalg
-
+import scipy.optimize
+from collections import Counter
 
 def get_flips(frames, flip_file=None, smoothing=None):
     """
@@ -467,22 +468,49 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
             mice_last_orientations = np.array(mice_last_orientations)
             first_valid_frame = True
         print('new frame')
-        for k in range(number_of_mice):
-            mouse_cnt = mouse_cnts[k]
-            # Get features from contours
-            moment_feats = im_moment_features(cnts[mouse_cnt])
-            # Now we need to match the mice identities based on the features from the previous frame.
-            centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
-            centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
-            orientation_distance_scores = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
-            similarity_scores = -centroid_distance_scores
-            id = np.argmax(similarity_scores)
-            print(similarity_scores)
-            print(id)
-            mice_last_centroids[id] = np.array(moment_feats['centroid'])
-            mice_last_orientations[id] = np.array(moment_feats['orientation'])
+        
+        assigned_ids = []
+        if number_of_mice > 1:
+            orientation_distance_scores = np.zeros((number_of_mice, number_of_mice))
+            for k in range(number_of_mice):
+                mouse_cnt = mouse_cnts[k]
+                # Get features from contours
+                moment_feats = im_moment_features(cnts[mouse_cnt])
+                # Now we need to match the mice identities based on the features from the previous frame.
+                centroid_distance_scores = scipy.linalg.norm(mice_last_centroids - np.array(moment_feats['centroid']), axis=1) # the lower, the closer
+                centroid_distance_scores = centroid_distance_scores / np.max(centroid_distance_scores) # normalize to between 0 and 1
+                orientation_distance_scores[k] = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
+                similarity_scores = -centroid_distance_scores
+                id = np.argmax(similarity_scores)
+                assigned_ids.append(id)
+            duplicated_ids = [item for item, count in Counter(assigned_ids).items() if count > 1]
+            # Handle more than one mouse being matched to the same id by centroid distance.
+            if len(duplicated_ids) > 0:
+                new_assigned_ids = assigned_ids
+                for dup_id in duplicated_ids:
+                    culprits = np.argwhere(assigned_ids == dup_id)
+                    cost_matrix = np.zeros((dup_id, dup_id))
+                    for l in range(len(culprits)):
+                        for m in range(len(culprits)):
+                            cost_matrix[l, m] = -orientation_distance_scores[culprits[l], culprits[m]]
+                    _, assignment = scipy.optimize.linear_sum_assignment(cost_matrix)
+                    for l in range(len(culprits)):
+                        new_assigned_ids[culprits[l]] = culprits[assignment[l]]
+                assigned_ids = new_assigned_ids
+            
+            print(assigned_ids)
+            
+            for k in range(number_of_mice):
+                id = assigned_ids[k]
+                mice_last_centroids[id] = np.array(moment_feats['centroid'])
+                mice_last_orientations[id] = np.array(moment_feats['orientation'])
+                for key, value in moment_feats.items():
+                    features_list[id][key][i] = value
+        else:
+            # number_of_mice=1.
+            moment_feats = im_moment_features(cnts[0])
             for key, value in moment_feats.items():
-                features_list[id][key][i] = value
+                features_list[0][key][i] = value
 
     return features_list, mask
 
