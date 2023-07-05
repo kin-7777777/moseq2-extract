@@ -420,7 +420,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
         mask = np.zeros((frames.shape), 'uint8')
 
     features_list = []
-    for i in range(number_of_mice):
+    for k in range(number_of_mice):
         # Pack contour features into dict
         features = {
             'centroid': np.full((nframes, 2), np.nan),
@@ -486,10 +486,13 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 orientation_distance_scores[k] = np.cos(mice_last_orientations - np.array(moment_feats['orientation'])) # the higher, the closer
                 similarity_scores = -centroid_distance_scores
                 id = np.argmax(similarity_scores)
+                print(similarity_scores)
                 assigned_ids.append(id)
             duplicated_ids = [item for item, count in Counter(assigned_ids).items() if count > 1]
+            print("duplicated_ids: "+str(duplicated_ids))
             # Handle more than one mouse being matched to the same id by centroid distance.
             if len(duplicated_ids) > 0:
+                print("hi")
                 new_assigned_ids = assigned_ids
                 for dup_id in duplicated_ids:
                     culprits = np.argwhere(assigned_ids == dup_id)
