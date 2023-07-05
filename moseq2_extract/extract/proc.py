@@ -504,7 +504,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                     cost_matrix = np.zeros((len(culprits), len(free_ids)))
                     for l in range(len(culprits)):
                         for m in range(len(free_ids)):
-                            cost_matrix[l, m] = -orientation_distance_scores[culprits[l], culprits[m]]
+                            cost_matrix[l, m] = -orientation_distance_scores[culprits[l], free_ids[m]]
                     print(cost_matrix)
                     row_ind, col_ind = scipy.optimize.linear_sum_assignment(cost_matrix)
                     assignment = np.zeros((len(culprits),), dtype=np.int)
@@ -512,7 +512,7 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                         assignment[r] = c
                     print("assignment: "+str(assignment))
                     for l in range(len(culprits)):
-                        new_assigned_ids[culprits[l]] = free_ids[assignment[l]]
+                        new_assigned_ids[culprits[l]] = free_ids.pop(assignment[l])
                 assigned_ids = new_assigned_ids
             
             print(assigned_ids)
