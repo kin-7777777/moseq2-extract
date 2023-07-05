@@ -464,9 +464,13 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 moment_feats = im_moment_features(cnts[mouse_cnt])
                 mice_last_centroids.append(moment_feats['centroid'])
                 mice_last_orientations.append(moment_feats['orientation'])
+                for key, value in moment_feats.items():
+                    features_list[k][key][i] = value
             mice_last_centroids = np.array(mice_last_centroids)
             mice_last_orientations = np.array(mice_last_orientations)
             first_valid_frame = True
+            continue # skip the rest of the mouse ID sorting for the first valid frame.
+            
         print('new frame')
         
         assigned_ids = []
