@@ -489,19 +489,21 @@ def get_frame_features(frames, frame_threshold=10, mask=np.array([]),
                 id = np.argmax(similarity_scores)
                 assigned_ids.append(id)
             duplicated_ids = [item for item, count in Counter(assigned_ids).items() if count > 1]
+            free_ids = list(set(range(number_of_mice)).difference(set(assigned_ids))) # unallocated ids.
             print("duplicated_ids: "+str(duplicated_ids))
             # Handle more than one mouse being matched to the same id by centroid distance.
             if len(duplicated_ids) > 0:
                 print("hi")
                 new_assigned_ids = assigned_ids
                 for dup_id in duplicated_ids:
+                    # We must match those duplicates to the unallocated ids (free_ids).
                     culprits = np.squeeze(np.argwhere(assigned_ids == dup_id))
                     print("culprits: "+str(culprits))
-                    cost_matrix = np.zeros((len(culprits), len(culprits)))
-                    print(cost_matrix)
+                    cost_matrix = np.zeros((len(culprits), len(free_ids)))
                     for l in range(len(culprits)):
-                        for m in range(len(culprits)):
+                        for m in range(len(free_ids)):
                             cost_matrix[l, m] = -orientation_distance_scores[culprits[l], culprits[m]]
+                    print(cost_matrix)
                     _, assignment = scipy.optimize.linear_sum_assignment(cost_matrix)
                     print("assignment: "+str(assignment))
                     for l in range(len(culprits)):
